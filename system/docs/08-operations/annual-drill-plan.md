@@ -6,12 +6,12 @@ Plan year starts January; shift months to the approved business calendar. Four f
 |---|---|---|---|
 | Jan | Aurora lag and restore | — | PITR restore, checksums, measured lag |
 | Feb | Kafka broker and replicator lag | — | replay, duplicate count, offset parity |
-| Mar | Redis Global Datastore promotion | Q1 Mumbai-to-Hyderabad | RTO/RPO, reconciliation, sign-off |
+| Mar | Redis Global Datastore promotion and split-brain tabletop | Q1 Mumbai-to-Hyderabad | RTO/RPO, fencing proof, reconciliation, single-writer sign-off |
 | Apr | DynamoDB conflict and recovery | — | conditional write conflict evidence |
 | May | DNS and certificate rotation | — | resolver convergence by network |
 | Jun | AZ loss and capacity | Q2 failover | 1,560 TPS target and safe degraded mode |
 | Jul | KMS/key compromise tabletop | — | access isolation and evidence custody |
-| Aug | DDoS/peak load | — | 150k RPS defensive test in approved scope |
+| Aug | DDoS/peak load and regional capacity failover | — | 150k RPS defensive test in approved scope; 1,200 TPS business peak plus approved headroom; measured DR capacity and partner limits |
 | Sep | Ransomware immutable restore | Q3 failover | clean-room recovery and evidence |
 | Oct | NPCI/third-party outage simulation | — | status inquiry, no blind retry |
 | Nov | Fraud/microservice cascade | — | controls remain effective in degraded mode |

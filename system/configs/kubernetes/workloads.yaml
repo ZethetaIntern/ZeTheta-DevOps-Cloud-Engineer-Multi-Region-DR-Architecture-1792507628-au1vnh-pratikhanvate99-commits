@@ -21,8 +21,14 @@ spec:
           ports: [{name: http, containerPort: 8080}]
           envFrom: [{configMapRef: {name: paysecure-config}}, {secretRef: {name: paysecure-secrets}}]
           resources: {requests: {cpu: "500m", memory: "512Mi"}, limits: {cpu: "2", memory: "2Gi"}}
+          startupProbe: {httpGet: {path: /health/live, port: 8080}, periodSeconds: 2, failureThreshold: 30}
           readinessProbe: {httpGet: {path: /health/ready, port: http}, periodSeconds: 5, failureThreshold: 2}
           livenessProbe: {httpGet: {path: /health/live, port: http}, periodSeconds: 10}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: {matchLabels: {app: payment-api}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -37,8 +43,12 @@ spec:
         - name: worker
           image: REPLACE_ECR_DIGEST
           args: ["processor"]
+          ports: [{name: health, containerPort: 8080}]
           envFrom: [{configMapRef: {name: paysecure-config}}, {secretRef: {name: paysecure-secrets}}]
           resources: {requests: {cpu: "500m", memory: "512Mi"}, limits: {cpu: "2", memory: "2Gi"}}
+          startupProbe: {httpGet: {path: /health/live, port: health}, periodSeconds: 2, failureThreshold: 30}
+          readinessProbe: {httpGet: {path: /health/ready, port: health}, periodSeconds: 5, failureThreshold: 2}
+          livenessProbe: {httpGet: {path: /health/live, port: health}, periodSeconds: 10}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -53,8 +63,12 @@ spec:
         - name: settlement
           image: REPLACE_ECR_DIGEST
           args: ["settlement"]
+          ports: [{name: health, containerPort: 8080}]
           envFrom: [{configMapRef: {name: paysecure-config}}, {secretRef: {name: paysecure-secrets}}]
           resources: {requests: {cpu: "250m", memory: "256Mi"}, limits: {cpu: "1", memory: "1Gi"}}
+          startupProbe: {httpGet: {path: /health/live, port: health}, periodSeconds: 2, failureThreshold: 30}
+          readinessProbe: {httpGet: {path: /health/ready, port: health}, periodSeconds: 5, failureThreshold: 2}
+          livenessProbe: {httpGet: {path: /health/live, port: health}, periodSeconds: 10}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -68,13 +82,25 @@ kind: Secret
 metadata: {name: paysecure-secrets, namespace: paysecure}
 type: Opaque
 stringData:
-  DATABASE_URL: "REPLACE_FROM_SECRET_PIPELINE"
-  MERCHANT_API_KEYS: "REPLACE_FROM_SECRET_PIPELINE"
+  # Replace this object with the approved Secrets Store CSI / External Secrets
+  # integration. Never commit live credentials to this manifest or repository.
+  DATABASE_URL: ""
+  MERCHANT_API_KEYS: ""
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata: {name: payment-api, namespace: paysecure}
 spec: {minAvailable: 2, selector: {matchLabels: {app: payment-api}}}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: transaction-processor, namespace: paysecure}
+spec: {minAvailable: 2, selector: {matchLabels: {app: transaction-processor}}}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: settlement-engine, namespace: paysecure}
+spec: {minAvailable: 1, selector: {matchLabels: {app: settlement-engine}}}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

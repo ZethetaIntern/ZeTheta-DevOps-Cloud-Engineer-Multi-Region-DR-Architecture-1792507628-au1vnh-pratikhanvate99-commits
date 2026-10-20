@@ -7,9 +7,11 @@ This repository is an implementation starter for the architecture in `../deliver
 - Go HTTP API with merchant-scoped idempotency and a PostgreSQL transactional outbox.
 - Kafka outbox publisher and idempotent demo processor; duplicate delivery does not create a second payment result.
 - Local Docker Compose stack: API, PostgreSQL, Kafka in KRaft mode.
-- Kubernetes deployment templates for the API and worker, readiness probes, disruption budget, network policy and autoscaling.
+- Kubernetes deployment templates for API, processor and settlement workers, HTTP liveness/readiness probes, disruption budgets, API autoscaling, network policy and zone spreading.
 - Terraform starter for a two-region AWS India network foundation. Managed data services are specified in architecture docs and require client-specific implementation.
 - 12 scenario-specific runbooks for failover, failback, incident response and recovery verification.
+
+The templates still require client-specific image digests, secret-provider integration, quotas, network rules and partner configuration. Worker readiness probes verify the database; Kafka consumer lag and health must also be monitored externally. None of these manifests has been applied to a client cluster.
 
 ## Local demonstration
 

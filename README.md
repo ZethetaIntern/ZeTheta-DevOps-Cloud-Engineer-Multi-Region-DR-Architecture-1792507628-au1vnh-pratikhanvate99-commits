@@ -1,11 +1,11 @@
 # ZeTheta DevOps & Cloud Engineer — Multi-Region DR Architecture for Payment Systems
 
-Client-ready project package for the fictional PaySecure Gateway Private Limited scenario. The assignment brief is treated as the specification; factual and legal claims in the source have been independently qualified in the project notes.
+Client review package for the fictional PaySecure Gateway Private Limited scenario. It includes architecture designs and a local simulator; production deployment and regulatory acceptance are not complete. The assignment brief is treated as the specification; factual and legal claims in the source have been independently qualified in the project notes.
 
 ## Deliverables
 
 - [Client architecture overview PDF](deliverables/PaySecure_Multi_Region_DR_Architecture_Client_Design.pdf)
-- [Complete implementation and operations package](system/README.md)
+- [Implementation starter and operations package](system/README.md)
 - [Requirements traceability](system/docs/00-project/requirements-traceability.md)
 - [Client-readiness and brief coverage audit](system/docs/00-project/client-readiness-audit.md)
 - [Architecture and active-active comparison](system/docs/02-multi-region-design/comparison-matrix.md)

@@ -116,17 +116,64 @@ func main() {
 	case "api":
 		err = runAPI(ctx, db, cfg)
 	case "publisher":
-		err = runPublisher(ctx, db, cfg)
+		err = runWorkerWithHealth(ctx, db, cfg, runPublisher)
 	case "processor":
-		err = runProcessor(ctx, db, cfg)
+		err = runWorkerWithHealth(ctx, db, cfg, runProcessor)
 	case "settlement":
-		err = runSettlement(ctx, db, cfg)
+		err = runWorkerWithHealth(ctx, db, cfg, runSettlement)
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
 	}
 	if err != nil {
 		slog.Error("service stopped", "error", err)
 		os.Exit(1)
+	}
+}
+
+// runWorkerWithHealth exposes orchestration probes for long-running workers.
+// Readiness checks the durable database dependency; liveness only confirms that
+// the process and probe server are responsive. Kafka failures still surface as
+// worker errors and are monitored through consumer lag and application logs.
+func runWorkerWithHealth(ctx context.Context, db *sql.DB, cfg Config, work func(context.Context, *sql.DB, Config) error) error {
+	workerCtx, cancelWorker := context.WithCancel(ctx)
+	defer cancelWorker()
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok\n"))
+	})
+	mux.HandleFunc("GET /health/ready", func(w http.ResponseWriter, r *http.Request) {
+		if err := db.PingContext(r.Context()); err != nil {
+			http.Error(w, "not ready", http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ready\n"))
+	})
+	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: securityHeaders(mux), ReadHeaderTimeout: 5 * time.Second}
+	serveErr := make(chan error, 1)
+	go func() {
+		err := srv.ListenAndServe()
+		if !errors.Is(err, http.ErrServerClosed) {
+			serveErr <- err
+		}
+	}()
+	workErr := make(chan error, 1)
+	go func() { workErr <- work(workerCtx, db, cfg) }()
+	select {
+	case err := <-workErr:
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+		return err
+	case err := <-serveErr:
+		cancelWorker()
+		return err
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+		return nil
 	}
 }
 

@@ -1,5 +1,46 @@
 # RB-05: Network partition between regions
 
+## Dedicated split-brain decision procedure
+
+This runbook covers an inter-region partition where Mumbai and Hyderabad may both appear healthy locally. Treat loss of control-plane visibility as **unknown writer state**, not proof that either side is safe to promote. The safety objective is a single fenced financial writer; availability may be reduced while authority is established.
+
+### Decision gates and operator actions
+
+1. Incident Commander declares a data-integrity SEV-1 if both regions report write readiness, writer identity differs between independent observers, or heartbeat/control-plane connectivity is lost while local writes continue.
+2. Freeze automatic region promotion, DNS automation, worker autoscaling that enables consumers, and any retry policy that could submit duplicate external payments.
+3. Capture timestamps, CloudTrail, database role/cluster state, application write logs, broker/replicator status, and network telemetry from both regions using independent credentials.
+4. Verify the fencing authority through a path independent of the partitioned application network (break-glass IAM, out-of-band console, or pre-agreed quorum witness).
+5. Identify the last acknowledged Aurora commit/LSN and current writer in each region. Do not infer authority from DNS, an old dashboard, or a local health check.
+6. If Mumbai is reachable and can be conclusively fenced from Hyderabad, revoke/disable Hyderabad write credentials and worker write paths before restoring the preferred Mumbai writer.
+7. If Mumbai is unreachable, use the approved external fencing mechanism to deny its writer access or isolate its write path. If that cannot be proven, **do not promote Hyderabad**; stay read-only/queued and escalate to the CRO/Payments lead.
+8. Require two-person approval (Incident Commander plus Data Lead) and record the evidence used to select the sole writer.
+9. Promote the selected cluster only after the opposing writer has been fenced; verify the new writer identity from a fresh authenticated session and confirm the old endpoint rejects writes.
+10. Keep all consumers stopped in the losing region. Start one consumer group only after database authority is established and event replay bounds are known.
+11. Compare payment IDs, merchant idempotency keys, commit positions, outbox event IDs, Kafka offsets, and rail/provider references for the partition window.
+12. Quarantine divergent or ambiguous payments for status inquiry and reconciliation; never select a winner by last-write timestamp alone and never blindly retry an unknown rail outcome.
+13. Route a nonfinancial canary through the selected region. Keep customer writes disabled until a single-writer check, duplicate check, and outbox/offset review pass.
+14. Restore traffic in controlled increments only after the Payments Lead accepts reconciliation results and Security confirms evidence is preserved.
+15. Maintain an explicit deny/fence on the former writer until reseed, parity validation, and a separately approved failback. A network heal alone is not authorization to reconnect both writers.
+
+### Split-brain acceptance and stop conditions
+
+**Pass:** independent observations agree on exactly one writable Aurora cluster; the former writer rejects writes; only one consumer group is active for each side-effecting workload; no unexplained duplicate or missing event remains in the reviewed window; rail state has been reconciled; approval and evidence are recorded.
+
+**Stop / remain fenced:** writer authority cannot be proven, opposing region cannot be fenced, commit history is inconsistent, event loss exceeds the approved bound, rail outcome is unknown, or canary integrity fails. Continue queued/read-only operation and escalate; the RTO target does not override ledger safety.
+
+### Read-only evidence commands (replace identifiers and run from the approved account)
+
+```bash
+aws rds describe-global-clusters --region ap-south-1 --global-cluster-identifier REPLACE_GLOBAL_CLUSTER
+aws rds describe-db-clusters --region ap-south-1 --db-cluster-identifier REPLACE_PRIMARY_CLUSTER
+aws rds describe-db-clusters --region ap-south-2 --db-cluster-identifier REPLACE_SECONDARY_CLUSTER
+aws kafka list-clusters-v2 --region ap-south-1
+aws kafka list-clusters-v2 --region ap-south-2
+aws cloudtrail lookup-events --region ap-south-1 --lookup-attributes AttributeKey=EventName,AttributeValue=PromoteReadReplicaDBCluster
+```
+
+These commands gather state only; they do not fence or promote. Account-specific write-fencing commands must be pre-reviewed, tested in nonproduction, and recorded in the client change plan before this runbook can be used operationally.
+
 **Owner:** Incident Commander. **Severity:** SEV-1. **Objective:** restore safe service within 5 minutes where the scenario permits; preserve RPO <60s as a measured target, not a guarantee. **Prerequisites:** current contact tree, customer account IDs, role ARNs, resource inventory, tested break-glass access. **Roles:** Incident Commander (IC) owns declaration and timeline; Platform Lead executes cloud actions; Data Lead validates writer/replication; Security Lead handles evidence and keys; Payments Lead owns rail state/reconciliation; Communications Lead issues approved notices.
 
 ## 1. Trigger and declaration

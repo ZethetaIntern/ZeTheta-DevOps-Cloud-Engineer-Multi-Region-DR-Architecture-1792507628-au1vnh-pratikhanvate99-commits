@@ -1,0 +1,9 @@
+# Copy to a protected local file and fill in the client-owned, India-region
+# state bucket before `terraform init -backend-config=<file>`. Create the bucket,
+# versioning, encryption, access logging and least-privilege controls in a
+# separately reviewed bootstrap. Never commit the populated file or state.
+bucket       = "REPLACE_CLIENT_TERRAFORM_STATE_BUCKET"
+key          = "paysecure/dr/terraform.tfstate"
+region       = "ap-south-1"
+encrypt      = true
+use_lockfile = true

@@ -1,5 +1,31 @@
 # RB-07: DDoS to 150,000+ RPS (125x peak)
 
+## Dedicated peak-load regional failover procedure
+
+Use this procedure when legitimate demand or a controlled load test approaches the 1,200 TPS scenario peak, a 150,000+ RPS attack saturates the primary, or the primary cannot sustain the approved load envelope. Do not equate edge request rate with authorized payment TPS. Do not conduct an external load test without written scope and provider approval.
+
+### Capacity and failover gates
+
+1. Declare high-severity capacity incident when two independent signals (synthetic success, saturation, queue age, DB connections, or regional health) cross the client-approved threshold for two consecutive evaluation periods.
+2. Incident Commander records whether traffic is hostile, legitimate, or uncertain; Security owns attack evidence and Payments owns financial request controls.
+3. Enable pre-approved WAF/rate-based controls, bot filtering, per-merchant quotas, circuit breakers, and bounded queues. Preserve authentication, fraud checks, idempotency, and ledger correctness.
+4. Shed noncritical reads/reports before payment intake. Return explicit retryable responses with guidance; do not acknowledge an unpersisted request as accepted.
+5. Confirm Hyderabad's last witnessed safe capacity, current warm capacity, database connection headroom, Kafka partition/consumer capacity, and partner-side limits. Autoscaling is not assumed to complete inside five minutes.
+6. Compare primary and DR Aurora lag, writer identity, stream replication lag, queue age, and current uncertain transaction window. If writer authority or lag is unknown, keep new financial writes queued/disabled.
+7. Payments Lead confirms partner/NPCI path availability and approved transaction rate limits in the destination region; a healthy cloud region cannot bypass partner throttles or registration constraints.
+8. Platform Lead scales DR services only within the tested quota and capacity envelope. If projected demand exceeds that envelope, preserve controlled degradation rather than route all traffic to an unproven target.
+9. Incident Commander authorizes regional promotion only after single-writer fencing and data-recovery gates in RB-01/RB-05 pass.
+10. Route a small, capped canary cohort (test merchant or approved low-risk traffic) and measure acceptance, latency, errors, queue growth, fraud decisions, and payment uncertainty.
+11. Increase traffic in 5%, 25%, 50%, and 100% stages only when each stage remains within the measured capacity envelope for its defined observation period and Payments signs off.
+12. At each stage, compare offered TPS to persisted and completed TPS; keep in-flight/outcome-unknown transactions separate from declined and failed traffic.
+13. Stop the ramp if p99 exceeds the approved objective, queue age grows for two intervals, DB/Kafka/partner saturation is imminent, duplicate rate increases, or fraud controls degrade.
+14. If traffic remains above validated capacity, activate documented per-merchant fair-use limits and incident communications; keep a stable admitted subset rather than oscillating DNS or repeatedly promoting regions.
+15. After demand subsides, drain queues at a rate below tested recovery capacity, reconcile ambiguous payment outcomes, remove temporary controls in reviewed stages, and schedule a capacity postmortem.
+
+### Required evidence and stop conditions
+
+Record per-region offered/admitted/completed TPS, RPS at edge, p95/p99, error classes, WAF decisions, DB connections/CPU, Aurora lag, Kafka partition count/lag, queue age, partner response codes, and every traffic-control change. A failover is accepted only if the DR region sustains the approved peak with headroom while preserving a single writer, fraud controls, and reconciled payment outcomes. If headroom or partner readiness is unknown, this is a controlled-capacity incident, not a full failover authorization.
+
 **Owner:** Incident Commander. **Severity:** SEV-1. **Objective:** restore safe service within 5 minutes where the scenario permits; preserve RPO <60s as a measured target, not a guarantee. **Prerequisites:** current contact tree, customer account IDs, role ARNs, resource inventory, tested break-glass access. **Roles:** Incident Commander (IC) owns declaration and timeline; Platform Lead executes cloud actions; Data Lead validates writer/replication; Security Lead handles evidence and keys; Payments Lead owns rail state/reconciliation; Communications Lead issues approved notices.
 
 ## 1. Trigger and declaration
