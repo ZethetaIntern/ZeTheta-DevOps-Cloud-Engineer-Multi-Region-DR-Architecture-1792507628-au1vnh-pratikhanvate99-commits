@@ -1,0 +1,24 @@
+flowchart LR
+  M[45,000 merchants<br/>HTTPS; actual DNS/SDK unknown] --> WAF[WAF and public load balancer<br/>listeners/rules unknown]
+  subgraph Mumbai[ap-south-1 Mumbai - only region stated by brief]
+    WAF --> API[Merchant and payment APIs<br/>service inventory to confirm]
+    API --> ORCH[Orchestration and idempotency]
+    ORCH --> FRAUD[Fraud and token services<br/>CDE scope to validate]
+    ORCH --> PROC[Transaction processor and rail adapters]
+    PROC --> DB[(Primary payment / ledger store<br/>engine, size, AZ count unknown)]
+    PROC --> K[(Kafka / queues<br/>topics, partitions unknown)]
+    K --> SETTLE[Settlement and reconciliation]
+    SETTLE --> BANK[UPI / bank / card networks]
+    DB -.unknown cache.-> REDIS[(Redis cache?) ]
+    API -.unknown.-> OBS[Metrics, logs, traces and alerts]
+    CICD[CI/CD and artifact registry<br/>placement/DR unknown] --> API
+  end
+  subgraph Unknowns[Not evidenced in source brief]
+    AZ[AZ topology, CIDRs, instance sizes]
+    BCP[Backup, restore and access paths]
+    DNS[DNS, DNSSEC, cert automation]
+  end
+  AZ -.inventory.-> Mumbai
+  BCP -.inventory.-> Mumbai
+  DNS -.inventory.-> WAF
+

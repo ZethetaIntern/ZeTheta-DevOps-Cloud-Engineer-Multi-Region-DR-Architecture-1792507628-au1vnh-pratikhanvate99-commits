@@ -1,0 +1,3 @@
+# Kubernetes templates
+
+Templates contain the three requested workload types, probes, autoscaling, disruption budget, ConfigMap/Secret placeholders and default-deny network policy. **Replace all REPLACE values**, add reviewed allow policies for DNS/database/Kafka/telemetry, use an external secret controller and image digests. The included API only exposes readiness and liveness; workers need an operational health endpoint before production probes are added. No cluster has been deployed.

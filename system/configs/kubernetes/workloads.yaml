@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: paysecure
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+  namespace: paysecure
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: payment-api}}
+  template:
+    metadata: {labels: {app: payment-api}}
+    spec:
+      containers:
+        - name: api
+          image: REPLACE_ECR_DIGEST
+          args: ["api"]
+          ports: [{name: http, containerPort: 8080}]
+          envFrom: [{configMapRef: {name: paysecure-config}}, {secretRef: {name: paysecure-secrets}}]
+          resources: {requests: {cpu: "500m", memory: "512Mi"}, limits: {cpu: "2", memory: "2Gi"}}
+          readinessProbe: {httpGet: {path: /health/ready, port: http}, periodSeconds: 5, failureThreshold: 2}
+          livenessProbe: {httpGet: {path: /health/live, port: http}, periodSeconds: 10}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: transaction-processor, namespace: paysecure}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: transaction-processor}}
+  template:
+    metadata: {labels: {app: transaction-processor}}
+    spec:
+      containers:
+        - name: worker
+          image: REPLACE_ECR_DIGEST
+          args: ["processor"]
+          envFrom: [{configMapRef: {name: paysecure-config}}, {secretRef: {name: paysecure-secrets}}]
+          resources: {requests: {cpu: "500m", memory: "512Mi"}, limits: {cpu: "2", memory: "2Gi"}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: settlement-engine, namespace: paysecure}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: settlement-engine}}
+  template:
+    metadata: {labels: {app: settlement-engine}}
+    spec:
+      containers:
+        - name: settlement
+          image: REPLACE_ECR_DIGEST
+          args: ["settlement"]
+          envFrom: [{configMapRef: {name: paysecure-config}}, {secretRef: {name: paysecure-secrets}}]
+          resources: {requests: {cpu: "250m", memory: "256Mi"}, limits: {cpu: "1", memory: "1Gi"}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: paysecure-config, namespace: paysecure}
+data:
+  REGION: "REPLACE_REGION"
+  KAFKA_TOPIC: "paysecure.payment-events"
+---
+apiVersion: v1
+kind: Secret
+metadata: {name: paysecure-secrets, namespace: paysecure}
+type: Opaque
+stringData:
+  DATABASE_URL: "REPLACE_FROM_SECRET_PIPELINE"
+  MERCHANT_API_KEYS: "REPLACE_FROM_SECRET_PIPELINE"
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: payment-api, namespace: paysecure}
+spec: {minAvailable: 2, selector: {matchLabels: {app: payment-api}}}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: {name: payment-api, namespace: paysecure}
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: payment-api}
+  minReplicas: 3
+  maxReplicas: 30
+  metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 65}}}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: default-deny, namespace: paysecure}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]

@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_DB: paysecure
+      POSTGRES_USER: paysecure
+      POSTGRES_PASSWORD: local-only-password
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paysecure -d paysecure"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  kafka:
+    image: bitnami/kafka:3.8
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_KRAFT_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports: ["9092:9092"]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  api:
+    build: .
+    command: ["/paysecure", "api"]
+    environment:
+      DATABASE_URL: postgres://paysecure:local-only-password@postgres:5432/paysecure?sslmode=disable
+      HTTP_ADDR: :8080
+      REGION: local
+      MERCHANT_API_KEYS: merchant-demo-001=local-demo-api-key
+    ports: ["8080:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+  outbox-publisher:
+    build: .
+    command: ["/paysecure", "publisher"]
+    environment:
+      DATABASE_URL: postgres://paysecure:local-only-password@postgres:5432/paysecure?sslmode=disable
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: paysecure.payment-events
+      REGION: local
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    restart: unless-stopped
+  processor:
+    build: .
+    command: ["/paysecure", "processor"]
+    environment:
+      DATABASE_URL: postgres://paysecure:local-only-password@postgres:5432/paysecure?sslmode=disable
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: paysecure.payment-events
+      KAFKA_GROUP: paysecure-demo-processor
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    restart: unless-stopped
+  settlement-engine:
+    build: .
+    command: ["/paysecure", "settlement"]
+    environment:
+      DATABASE_URL: postgres://paysecure:local-only-password@postgres:5432/paysecure?sslmode=disable
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: paysecure.payment-events
+      REGION: local
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    restart: unless-stopped
+volumes:
+  pgdata: {}
+

@@ -1,0 +1,10 @@
+# Template values; public synthetic endpoint only. Private services should use calculated checks.
+healthCheck:
+  type: HTTPS
+  fqdn: dr-probe.example.invalid
+  port: 443
+  resourcePath: /health/ready
+  requestIntervalSeconds: 10
+  failureThreshold: 3
+  regions: [us-east-1, eu-west-1, ap-southeast-1]
+  alarmActions: [arn:aws:sns:ap-south-1:123456789012:REPLACE]

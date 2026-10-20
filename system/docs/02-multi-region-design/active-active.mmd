@@ -1,0 +1,15 @@
+flowchart LR
+  M1[Home region merchants] --> G[Global traffic steering]
+  M2[Other eligible cohorts] --> G
+  G --> A1[Active API Mumbai]
+  G --> A2[Active API Hyderabad]
+  A1 --> L1[(Mumbai shard/ledger owner)]
+  A2 --> L2[(Hyderabad shard/ledger owner)]
+  L1 <-->|Partitioned ownership only; no cross-writes| L2
+  A1 -. events .-> K1[(Kafka Mumbai)]
+  A2 -. events .-> K2[(Kafka Hyderabad)]
+  K1 -. async replicate .-> K2
+  K2 -. async replicate .-> K1
+  N[Global idempotency / merchant ownership registry] --> A1
+  N --> A2
+  C[Risk: partition and ownership conflict] -. requires fencing and reconciliation .-> L1

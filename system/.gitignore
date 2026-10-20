@@ -1,0 +1,12 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.env
+secrets/
+*.pem
+*.key
+
+
+.gopath/
+.gomodcache/

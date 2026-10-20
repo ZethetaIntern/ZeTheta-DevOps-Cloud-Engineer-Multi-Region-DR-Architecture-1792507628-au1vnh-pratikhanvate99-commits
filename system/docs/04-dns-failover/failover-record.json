@@ -1,0 +1,4 @@
+{
+  "Comment": "Template only: replace hosted-zone and DNS names; validate health check design before import",
+  "Changes": [{"Action":"UPSERT","ResourceRecordSet":{"Name":"api.example.invalid.","Type":"A","SetIdentifier":"mumbai-primary","Failover":"PRIMARY","AliasTarget":{"HostedZoneId":"Z_REPLACE","DNSName":"dualstack.primary.example.invalid.","EvaluateTargetHealth":true}}},{"Action":"UPSERT","ResourceRecordSet":{"Name":"api.example.invalid.","Type":"A","SetIdentifier":"hyderabad-secondary","Failover":"SECONDARY","AliasTarget":{"HostedZoneId":"Z_REPLACE","DNSName":"dualstack.secondary.example.invalid.","EvaluateTargetHealth":true}}}]
+}

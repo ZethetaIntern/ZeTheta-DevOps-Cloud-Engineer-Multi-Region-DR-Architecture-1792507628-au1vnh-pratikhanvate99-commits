@@ -1,0 +1,19 @@
+flowchart LR
+  M[Merchants / UPI adapters] --> G[Route 53 failover + WAF]
+  G --> AP[API / EKS Mumbai]
+  AP --> DBP[(Aurora Mumbai writer)]
+  DBP -. async global replication .-> DBD[(Aurora Hyderabad hot standby)]
+  AP --> KP[(MSK Mumbai)]
+  KP -. MSK Replicator .-> KD[(MSK Hyderabad)]
+  AP --> DP[(DynamoDB Mumbai)]
+  DP -. MREC .-> DD[(DynamoDB Hyderabad)]
+  AP --> RP[(Redis Mumbai primary)]
+  RP -. Global Datastore .-> RD[(Redis Hyderabad)]
+  AP --> SP[(S3 Mumbai)]
+  SP -. CRR within India .-> SD[(S3 Hyderabad)]
+  G -. fail over after fencing and promotion .-> HD[API / EKS Hyderabad]
+  HD --> DBD
+  HD --> KD
+  HD --> DD
+  HD --> RD
+  HD --> SD
