@@ -17,6 +17,9 @@
 | Kubernetes payment-api, transaction-processor and settlement-engine, probes, HPA, PDB, config/secret, network policy | `../configs/kubernetes/` | Manifests supplied; images, names, quotas and external controller values are customer inputs. |
 | BCRB, ten challenge answers, comms matrix, monitoring/dashboard, chaos design, multi-cloud | `../09-review/`, `../08-operations/` | Simulated; does not represent real board or regulator approval. |
 | Identify five deliberate errors | `../10-source-review/deliberate-errors-found.md` | Five high-risk claims/calculation errors are documented with confidence. The brief does not label which five it planted, so exact author intent cannot be inferred. |
+| Verify overall client and PDF acceptance coverage | `client-readiness-audit.md` | Explicit status audit: distinguishes design artifacts, starter templates, simulated outputs, and evidence not yet available. |
+
+**Client-share caveat:** “Implemented” in this matrix means an artifact exists in the repository; it does not mean a production AWS service is deployed or that an acceptance target has passed. In particular, all 12 runbooks still contain client-specific placeholders and require review and rehearsal; Terraform only provisions a network starter; RPO/RTO, availability and regulatory acceptance are unproven. See `client-readiness-audit.md` before presenting this as completed production work.
 
 ## Scenario inputs used consistently
 
