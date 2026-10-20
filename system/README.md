@@ -9,13 +9,15 @@ This repository is an implementation starter for the architecture in `../deliver
 - Local Docker Compose stack: API, PostgreSQL, Kafka in KRaft mode.
 - Kubernetes deployment templates for the API and worker, readiness probes, disruption budget, network policy and autoscaling.
 - Terraform starter for a two-region AWS India network foundation. Managed data services are specified in architecture docs and require client-specific implementation.
-- Guarded operator scripts for regional failover/failback and state inspection.
+- 12 scenario-specific runbooks for failover, failback, incident response and recovery verification.
 
 ## Local demonstration
 
 Requirements: Docker Compose v2 and Go 1.23+ (only needed to build outside Docker).
 
 ```powershell
+# If local port 8080 is occupied, choose another host port first:
+$env:PAYSECURE_HOST_PORT = '18080'
 docker compose up --build
 ```
 
@@ -23,7 +25,8 @@ Create a simulated payment (amounts are paise):
 
 ```powershell
 $key = [guid]::NewGuid().ToString()
-Invoke-RestMethod -Method Post -Uri http://localhost:8080/v1/payments `
+$port = if ($env:PAYSECURE_HOST_PORT) { $env:PAYSECURE_HOST_PORT } else { '8080' }
+Invoke-RestMethod -Method Post -Uri http://localhost:$port/v1/payments `
   -Headers @{ 'Idempotency-Key' = $key; 'X-Merchant-ID' = 'merchant-demo-001'; 'X-API-Key' = 'local-demo-api-key' } `
   -ContentType 'application/json' `
   -Body '{"amount_minor":159900,"currency":"INR"}'
@@ -31,7 +34,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8080/v1/payments `
 
 The local compose profile enables only `merchant-demo-001` with a local-only API key. Repeat the same request with the same key to receive the same payment ID. Poll `GET /v1/payments/{id}`; the demo worker moves it from `PENDING` to `SIMULATED_APPROVED`. This is a software simulation only. `GET /health/live` and `/health/ready` are available for orchestration.
 
-Stop with `docker compose down`. Local volume data is retained; remove it only when intentionally resetting the local demo.
+Run the local API checks with `./scripts/smoke-test.ps1`. Stop with `docker compose down`. Local volume data is retained; remove it only when intentionally resetting the local demo.
 
 ## AWS deployment path
 
